@@ -23,22 +23,46 @@ namespace
         requires std::is_pointer<T>::value && std::is_function<std::remove_pointer<T>>::value;
     };
 
-    template<typename ...Args>
-    class Slot
+    // https://en.cppreference.com/w/cpp/language/class_template_argument_deduction
+    template <typename Ret, typename... Arg> 
+    class Slot_t
     {
-        public:
-            slot(std::function<void(Args...)> && params)
-            {
-                _callback = params;
-            }
-            void emit(Args ... params)
-            {
-                _callback(params...);
-            }
-            
-        private:
-            std::function<void(Args ...)> _callback;
+    private:
+        std::function<Ret(Arg...)> fun;
+        Ret(*func)(Arg...);
+    public:
+        Slot_t() = default;
+        ~Slot_t() = default;
+        Slot_t(std::function<Ret(Arg...)> callback) : fun(callback) {}
+        Slot_t(Ret(*callback)(Arg...)) : func(callback) {}
+        void emit(Arg... params)
+        {
+            if (fun) fun(params...);
+            if (func) func(params...);
+        }
     };
+
+    template<typename T,typename Ret,typename ...Arg>
+    class Slotm_t
+    {
+        private:
+        std::function<Ret(T&, Arg...)>  funcmem;
+        public:
+        Slotm_t(Ret (T::*callback)(Arg...))
+        {
+            funcmem = [callback](T& instance, Arg... args) {
+                return (instance.*callback)(args...);
+            };
+        }
+        void emit(T & member,Arg... params)
+        {
+            if (funcmem) funcmem(member,params...);
+        }
+    };
+
+    //CTAD
+    template <typename Callback>
+    Slot_t(Callback) -> Slot_t<Callback>;
 
     template <typename ...Args>
     class Signal
