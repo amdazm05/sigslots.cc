@@ -15,6 +15,10 @@ public:
     {
         std::cout<<i<<" -- "<<x<<y<<z<<std::endl;
     }
+    static void conceptfail(int x,int y,int z)
+    {
+        
+    }
 };
 
 int main()
@@ -30,6 +34,8 @@ int main()
     sigi.connect(sig);
     Slot_t sig2(lamb);
     Slotm_t sig3(&data_t::funct);
+    // Case of failure
+    // Slotm_t sig4(&data_t::conceptfail);
     sigi2.connect(dat,sig3);
     sigi.emit(1,2,3);
     return 0;
