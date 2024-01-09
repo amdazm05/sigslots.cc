@@ -17,14 +17,11 @@ namespace
         requires std::is_member_function_pointer<T>::value;
     };
 
-    template <class T>
-    concept _isFuncPtr = requires (T v)
-    {
-        requires std::is_pointer<T>::value && std::is_function<std::remove_pointer<T>>::value;
-    };
+    template <typename T>
+    concept _isFuncPtr = std::is_pointer_v<T> && std::is_function_v<std::remove_pointer_t<T>>;
 
     // https://en.cppreference.com/w/cpp/language/class_template_argument_deduction
-    template <typename Ret, typename... Arg> 
+    template <typename Ret, typename... Arg>
     class Slot_t
     {
     private:
@@ -34,11 +31,12 @@ namespace
         Slot_t() = default;
         ~Slot_t() = default;
         Slot_t(std::function<Ret(Arg...)> callback) : fun(callback) {}
-        Slot_t(Ret(*callback)(Arg...)) : func(callback) {}
+        Slot_t(Ret(*callback)(Arg...)) requires  _isFuncPtr<Ret(*)(Arg...)> : func(callback) {}  
         void call(Arg... params)
         {
             if (fun) fun(params...);
             if (func) func(params...);
+            else throw std::runtime_error("Slot_t: no invokable attached");
         }
     };
 
@@ -48,7 +46,10 @@ namespace
     private:
         std::function<Ret(T&, Arg...)>  funcmem;
     public:
-        Slotm_t(Ret (T::*callback)(Arg...))
+        /// @brief This concept here fails when you intend to use a static function
+        /// @param callback 
+        Slotm_t(Ret (T::*callback)(Arg...)) requires std::is_class_v<T> 
+            && std::is_member_function_pointer_v<decltype(callback)> //Addin concepts for safety
         {
             funcmem = [callback](T& instance, Arg... args) {
                 return (instance.*callback)(args...);
@@ -78,7 +79,8 @@ namespace
         void emit(Arg... params)
         {
             for(auto & slot:_slots)
-                (*slot).call(params...);
+                if(slot)
+                    (*slot).call(params...);
         }
     };
 
